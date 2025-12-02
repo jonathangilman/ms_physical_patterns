@@ -7,8 +7,8 @@
 # annual & monthly nitrogen trends.
 
 # It will also create figures for Heili's poster
-# at the 2025 Gordon Research Conference and
-# ultimately the N manuscript.
+# at the 2025 Gordon Research Conference and,
+# ultimately, the N manuscript.
 
 #### Load packages ####
 library(here)
@@ -35,7 +35,7 @@ source(here('src', 'setup.R'))
 # As well as monthly trends.
 # n_monthly_trends <- readRDS("data_working/nitrogen_monthly_trends.rds")
 
-# Datasets for MANUSCRIPT figures:
+# Datasets for MANUSCRIPT figures (from `metrics.R`):
 # Annual
 # All sites and analytes for which we could calculate annual VWMs
 N_VWM_annual <- readRDS("data_working/N_VWM_annual.rds")
@@ -1075,9 +1075,11 @@ dat_text_seas <- data.frame(
 # figure showing peak months for Q and N analytes.
 
 # First, I need to calculate monthly averages
-mean_N_VWM_monthly20 <- N_VWM_monthly %>%
-    filter(water_year > 2009) %>%
-    filter(water_year < 2021) %>%
+# NOTE- IVE EDITED THIS CODE TO INCLUDE ALL POSSIBLE DATA
+# TO SHOW AS AN ALTERNATIVE TO ONLY 2010-2020.
+mean_N_VWM_monthly <- N_VWM_monthly %>%
+    #filter(water_year > 2009) %>%
+    #filter(water_year < 2021) %>%
     group_by(site_code, analyte_N, month) %>%
     summarize(mean_monthly_VWM_mgL = mean(monthly_vwm_mgL,
                                          na.rm = TRUE),
@@ -1087,9 +1089,9 @@ mean_N_VWM_monthly20 <- N_VWM_monthly %>%
     ungroup()
 
 # Join with site info so that we can filter out experimental sites.
-mean_N_VWM_monthly20 <- left_join(mean_N_VWM_monthly20, ms_site_data)
+mean_N_VWM_monthly <- left_join(mean_N_VWM_monthly, ms_site_data)
 
-mean_N_VWM_monthly20_nonexp <- mean_N_VWM_monthly20 %>%
+mean_N_VWM_monthly_nonexp <- mean_N_VWM_monthly %>%
     filter(ws_status == "non-experimental")
 
 # Also, to impose at least a minimal filter on these data I am going to
@@ -1097,7 +1099,8 @@ mean_N_VWM_monthly20_nonexp <- mean_N_VWM_monthly20 %>%
 # this time frame.
 
 # Taking the average of months represented and years in records.
-mean_times <- mean_N_VWM_monthly20_nonexp %>%
+# NOTE NEW FILTER IS MIN. 3 MONTHS AND 3 YEARS
+mean_times <- mean_N_VWM_monthly_nonexp %>%
     filter(analyte_N %in% c("NO3_N", "NH3_N", "TDN")) %>%
     group_by(site_code, analyte_N) %>%
     summarize(total_months = n(),
@@ -1106,14 +1109,14 @@ mean_times <- mean_N_VWM_monthly20_nonexp %>%
 
 keep_sites <- mean_times %>%
     mutate(keep = case_when(total_months > 2 &
-                                avg_years >= 6 ~ "YES",
+                                avg_years >= 3 ~ "YES",
                             TRUE ~ "NO")) %>%
     filter(keep == "YES") %>%
     select(site_code, analyte_N)
 
 # And trim down original monthly VWM data to match the above list.
-mean_N_VWM_monthly20_nonexp_keep <- left_join(keep_sites,
-                                              mean_N_VWM_monthly20_nonexp)
+mean_N_VWM_monthly_nonexp_keep <- left_join(keep_sites,
+                                            mean_N_VWM_monthly_nonexp)
 
 # Also, need to bring in Q data to do the same.
 q_monthly <- q_metrics %>%
@@ -1122,25 +1125,26 @@ q_monthly <- q_metrics %>%
 
 # calculate monthly averages
 # First, I need to calculate monthly averages
-mean_q_monthly20 <- q_monthly %>%
-    filter(water_year > 2009) %>%
-    filter(water_year < 2021) %>%
+# NOTE MAKING SAME ADJUSTMENTS HERE AS ABOVE
+mean_q_monthly <- q_monthly %>%
+    #filter(water_year > 2009) %>%
+    #filter(water_year < 2021) %>%
     group_by(site_code, month) %>%
     summarize(mean_monthly_q = mean(q_mean, na.rm = TRUE),
               total_years = as.numeric(n())) %>%
     ungroup() %>%
-    filter(total_years > 6) %>%
+    filter(total_years >= 3) %>%
     filter(!is.nan(mean_monthly_q)) %>%
     filter(!is.na(month))
 
 # And find peak discharge months.
-peak_q_months <- mean_q_monthly20 %>%
+peak_q_months <- mean_q_monthly %>%
     group_by(site_code) %>%
     slice_max(mean_monthly_q) %>%
     mutate(analyte_N = "Q")
 
 # Calculate peak months.
-peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
+peak_months <- mean_N_VWM_monthly_nonexp_keep %>%
     group_by(site_code, analyte_N) %>%
     slice_max(mean_monthly_VWM_mgL) %>%
     # and join with Q data above
@@ -1159,7 +1163,7 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
     geom_bar(stat = "count", fill = "#4B8FF7") +
     labs(x = "Month", y = "Count", title = "Q") +
     scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                       limits = c(1,12)) +
+                       limits = c(0,13)) +
     theme_bw() +
     theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1168,9 +1172,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#E7A655") +
         labs(x = "Month", y = "Count", title = "Nitrate") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10),
-                           limits = c(0,10)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10),
+        #                    limits = c(0,10)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1179,9 +1183,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#E38377") +
         labs(x = "Month", y = "Count", title = "Ammonium") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6),
-                           limits = c(0,6)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6),
+        #                    limits = c(0,6)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1190,9 +1194,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#6D4847") +
         labs(x = "Month", y = "Count", title = "Total Dissolved Nitrogen") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6),
-                           limits = c(0,6)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6),
+        #                    limits = c(0,6)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1201,7 +1205,7 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
 
 # And export figure.
 # ggsave(peaks_all,
-#        filename = "figures/peak_months_N_2010_to_2020.jpeg",
+#        filename = "figures/peak_months_N.jpeg",
 #        height = 20,
 #        width = 10,
 #        units = "cm")
@@ -1860,7 +1864,7 @@ N_CQ_trim_nonexp <- N_CQ_trim %>%
                              mid = "white",
                              high = "#FAB455",
                              midpoint = 0) +
-        facet_grid(analyte_N~season, scales = "free") +
+        facet_grid(analyte_N~season) +
         labs(x = "Seasonal C-Q Slope", y = "Site Count") +
         theme_bw() +
         theme(strip.background = element_rect(colour="NA", fill="NA"),
@@ -1892,6 +1896,26 @@ N_CQ_trim_nonexp <- N_CQ_trim %>%
 #        height = 16,
 #        width = 16,
 #        units = "cm")
+
+# Examining percent of diluting (slope = -1),
+# chemostatic (slope = 0), and flushing (slope = 1)
+regimes <- N_CQ_trim_nonexp %>%
+    mutate(group = case_when(cq_slope <= -1 ~ "diluting",
+                             cq_slope >-1 &
+                                 cq_slope < 1 ~ "chemostatic",
+                             cq_slope >=1 ~ "flushing")) %>%
+    group_by(analyte_N, season, group) %>%
+    summarize(count = n()) %>%
+    ungroup()
+
+mean_slopes <- N_CQ_trim_nonexp %>%
+    mutate(group = case_when(cq_slope <= -1 ~ "diluting",
+                             cq_slope >-1 &
+                                 cq_slope < 1 ~ "chemostatic",
+                             cq_slope >=1 ~ "flushing")) %>%
+    group_by(analyte_N, season) %>%
+    summarize(mean_slope = mean(cq_slope)) %>%
+    ungroup()
 
 ###### Decadal #######
 
@@ -1957,6 +1981,8 @@ N_CQ_dec_trim_nonexp <- N_CQ_dec_trim %>%
 # Join climate and deposition trends
 dep_clim_trends_ann <- rbind(ndep_trends_ann, clim_trends)
 
+###### NO3 ######
+
 # Join NO3 and climate trends
 no3_clim_trends_ann <- full_join(no3_trends_ann, dep_clim_trends_ann)
 
@@ -1989,32 +2015,38 @@ no3_clim_trends_ann_wide <- full_join(no3_clim_trends_ann_wide,
                           levels = c("decreasing",
                                      "increasing",
                                      "non-significant",
-                                     "insufficient data"))) %>%
-    mutate(freq = case_when(group %in% c("insufficient data",
-                                           "non-significant") ~ NA,
-                              mean_ann_records <= 10 ~ "monthly",
-                              mean_ann_records > 10 &
-                                  mean_ann_records <= 50 ~ "weekly",
-                              mean_ann_records > 50 ~ "subweekly")) %>%
-    mutate(infill = factor(case_when(group == "decreasing" & freq == "subweekly" ~ "-, subweekly",
-                                     group == "decreasing" & freq == "weekly" ~ "-, weekly",
-                                     group == "decreasing" & freq == "monthly" ~ "-, monthly",
-                                     group == "increasing" & freq == "subweekly" ~ "+, subweekly",
-                                     group == "increasing" & freq == "weekly" ~ "+, weekly",
-                                     group == "increasing" & freq == "monthly" ~ "+, monthly",
-                                     group == "non-significant" ~ "no trend",
-                                     TRUE ~ "insufficient data"),
-                           levels = c("-, subweekly","-, weekly","-, monthly",
-                                      "no trend","+, monthly","+, weekly","+, subweekly",
-                                      "insufficient data")))
+                                     "insufficient data")))
 
 # Join with site level data.
 no3_clim_trends_ann_wide <- left_join(no3_clim_trends_ann_wide,
-                                      ms_site_data)
+                                      ms_site_data) %>%
+    mutate(group2 = factor(case_when(flag %in% c("increasing", "decreasing",
+                                                 "non-significant") &
+                                         ws_status == "non-experimental" ~ flag,
+                                     flag %in% c("increasing") &
+                                         ws_status == "experimental" ~ "increasing exp",
+                                     flag %in% c("decreasing") &
+                                         ws_status == "experimental" ~ "decreasing exp",
+                                     flag %in% c("non-significant") &
+                                         ws_status == "experimental" ~ "non-significant exp",
+                                     TRUE ~ "insufficient data"),
+                           levels = c("decreasing",
+                                      "decreasing exp",
+                                      "increasing",
+                                      "increasing exp",
+                                      "non-significant",
+                                      "non-significant exp",
+                                      "insufficient data")))
 
 # Need to order dataset properly before plotting.
+# This helps points appear better.
 no3_clim_trends_ann_wide_ed <- no3_clim_trends_ann_wide %>%
     filter(ws_status == "non-experimental") %>%
+    arrange(NO3_N) %>%
+    arrange(desc(group))
+
+# This helps points appear better.
+no3_clim_trends_ann_wide <- no3_clim_trends_ann_wide %>%
     arrange(NO3_N) %>%
     arrange(desc(group))
 
@@ -2038,18 +2070,46 @@ no3_clim_trends_ann_wide_ed <- no3_clim_trends_ann_wide %>%
                        guide = "none") +
     scale_size_manual(values = c(6, 4, 2),
                        guide = "none") +
-    scale_color_manual(values = c("blue", #"royalblue1",
-                                  #"cadetblue3",
-                                  "gray46",
-                                  #"lightsalmon1",
-                                  # "coral1",
-                                  #"firebrick2",
+    scale_color_manual(values = c("blue",
+                                  "gray56",
                                   "gray76"),
                        guide = "none") +
     labs(x = "Mean Annual Temperature Trend",
          y = "Mean Annual Precipitation Trend",
          color = "Trend & Sampling Frequency") +
     theme_bw())
+
+# PRECIP V TEMP - including exp sites
+(figNO3_ppt_temp2 <- ggplot(no3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = precip_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.04, 0.04) +
+        annotate("text", x = -0.042, y = 0.04, label = "Cooling, Wetting") +
+        annotate("text", x = -0.042, y = -0.04, label = "Cooling, Drying") +
+        annotate("text", x = 0.042, y = 0.04, label = "Warming, Wetting") +
+        annotate("text", x = 0.042, y = -0.04, label = "Warming, Drying") +
+        scale_shape_manual(values = c(20, 15, 15, 20, 15, 4),
+                           guide = "none") +
+        scale_size_manual(values = c(6, 4, 4, 4, 3, 2),
+                          guide = "none") +
+        scale_color_manual(values = c("blue",
+                                      "blue",
+                                      "orange",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Precipitation Trend",
+             color = "Trend & Sampling Frequency") +
+        theme_bw())
 
 # GPP V TEMP
 (figNO3_gpp_temp <- ggplot(no3_clim_trends_ann_wide_ed,
@@ -2069,15 +2129,43 @@ no3_clim_trends_ann_wide_ed <- no3_clim_trends_ann_wide %>%
         annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
         scale_shape_manual(values = c(20, 20, 4)) +
         scale_size_manual(values = c(6, 4, 2)) +
-        scale_color_manual(values = c("blue", #"royalblue1",
-                                      #"cadetblue3",
-                                      "gray46",
-                                      #"lightsalmon1",
-                                      #"coral1",
-                                      #"firebrick2",
+        scale_color_manual(values = c("blue",
+                                      "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
+             color = "NO3 Trend",
+             shape = "NO3 Trend",
+             size = "NO3 Trend") +
+        theme_bw() +
+        theme(legend.position = "bottom"))
+
+# GPP V TEMP - including exp sites
+(figNO3_gpp_temp2 <- ggplot(no3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = gpp_CONUS_30m_median)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.001, 0.001) +
+        annotate("text", x = -0.04, y = 0.001, label = "Cooling, Greening") +
+        annotate("text",x = -0.04, y = -0.001, label = "Cooling, Browning") +
+        annotate("text",x = 0.04, y = 0.001, label = "Warming, Greening") +
+        annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
+        scale_shape_manual(values = c(20, 15, 15, 20, 15, 4)) +
+        scale_size_manual(values = c(6, 4, 4, 4, 3, 2)) +
+        scale_color_manual(values = c("blue",
+                                      "blue",
+                                      "orange",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76")) +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Productivity Trend",
              color = "NO3 Trend",
              shape = "NO3 Trend",
              size = "NO3 Trend") +
@@ -2102,12 +2190,37 @@ no3_clim_trends_ann_wide_ed <- no3_clim_trends_ann_wide %>%
         annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
         scale_shape_manual(values = c(20, 20, 4), guide = "none") +
         scale_size_manual(values = c(6, 4, 2), guide = "none") +
-        scale_color_manual(values = c("blue", #"royalblue1",
-                                      #"cadetblue3",
-                                      "gray46",
-                                      #"lightsalmon1",
-                                      # "coral1",
-                                      #"firebrick2",
+        scale_color_manual(values = c("blue",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual N Deposition Trend") +
+        theme_bw())
+
+# DEP V TEMP - including exp sites
+(figNO3_dep_temp2 <- ggplot(no3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = N_flux_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.12, 0.12) +
+        annotate("text", x = -0.035, y = 0.12, label = "Cooling, Eutrophying") +
+        annotate("text",x = -0.035, y = -0.12, label = "Cooling, Oligotrophying") +
+        annotate("text",x = 0.035, y = 0.12, label = "Warming, Eutrophying") +
+        annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
+        scale_shape_manual(values = c(20, 15, 15, 20, 15, 4), guide = "none") +
+        scale_size_manual(values = c(6, 4, 4, 4, 3, 2), guide = "none") +
+        scale_color_manual(values = c("blue",
+                                      "blue",
+                                      "orange",
+                                      "gray56",
+                                      "gray56",
                                       "gray76"),
                            guide = "none") +
         labs(x = "Mean Annual Temperature Trend",
@@ -2122,5 +2235,561 @@ no3_clim_trends_ann_wide_ed <- no3_clim_trends_ann_wide %>%
 #        height = 14,
 #        width = 40,
 #        units = "cm")
+
+# and export version including experimental sites
+
+(figNO3_all2 <- figNO3_ppt_temp2 + figNO3_gpp_temp2 + figNO3_dep_temp2 +
+        plot_annotation(tag_levels = "a"))
+
+# ggsave(figNO3_all2,
+#        filename = "figures/panelfig_no3_clim_dep_trends_exp.jpeg",
+#        height = 14,
+#        width = 40,
+#        units = "cm")
+
+###### NH3 ######
+
+# Join NH3 and climate trends
+nh3_clim_trends_ann <- full_join(nh3_trends_ann, dep_clim_trends_ann)
+
+# Quick check of overlaps
+nh3_sites <- nh3_trends_ann %>% select(site_code) %>% unique()
+clim_sites <- dep_clim_trends_ann %>% select(site_code) %>% unique()
+inner_nh3 <- inner_join(nh3_sites, clim_sites) # 71 sites max overlap
+only_nh3 <- nh3_sites %>%
+    filter(!site_code %in% inner_nh3$site_code) # 22 sites only with NH3 data
+only_clim <- clim_sites %>%
+    filter(!site_code %in% inner_nh3$site_code) # 95 sites with only climate data
+
+# Trim to variables of interest
+nh3_clim_trends_ann_wide <- nh3_clim_trends_ann %>%
+    select(site_code, var, trend) %>%
+    pivot_wider(names_from = var,
+                values_from = trend)
+
+# And join with trend flags and number of obs. data
+nh3_confidence <- nh3_trends_ann %>%
+    select(site_code, flag, mean_ann_records)
+
+nh3_clim_trends_ann_wide <- full_join(nh3_clim_trends_ann_wide,
+                                      nh3_confidence) %>%
+    mutate(group = factor(case_when(flag %in% c("increasing", "decreasing",
+                                                "non-significant") ~ flag,
+                                    TRUE ~ "insufficient data"),
+                          levels = c("decreasing",
+                                     "increasing",
+                                     "non-significant",
+                                     "insufficient data")))
+
+# Join with site level data.
+nh3_clim_trends_ann_wide <- left_join(nh3_clim_trends_ann_wide,
+                                      ms_site_data) %>%
+    mutate(group2 = factor(case_when(flag %in% c("increasing", "decreasing",
+                                                 "non-significant") &
+                                         ws_status == "non-experimental" ~ flag,
+                                     flag %in% c("increasing") &
+                                         ws_status == "experimental" ~ "increasing exp",
+                                     flag %in% c("decreasing") &
+                                         ws_status == "experimental" ~ "decreasing exp",
+                                     flag %in% c("non-significant") &
+                                         ws_status == "experimental" ~ "non-significant exp",
+                                     TRUE ~ "insufficient data"),
+                           levels = c("decreasing",
+                                      "decreasing exp",
+                                      "increasing",
+                                      "increasing exp",
+                                      "non-significant",
+                                      "non-significant exp",
+                                      "insufficient data")))
+
+# Need to order dataset properly before plotting.
+# This helps points appear better.
+nh3_clim_trends_ann_wide_ed <- nh3_clim_trends_ann_wide %>%
+    filter(ws_status == "non-experimental") %>%
+    arrange(NH3_N) %>%
+    arrange(desc(group))
+
+nh3_clim_trends_ann_wide <- nh3_clim_trends_ann_wide %>%
+    arrange(NH3_N) %>%
+    arrange(desc(group))
+
+# PRECIP V TEMP
+(figNH3_ppt_temp <- ggplot(nh3_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = precip_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.04, 0.04) +
+        annotate("text", x = -0.042, y = 0.04, label = "Cooling, Wetting") +
+        annotate("text", x = -0.042, y = -0.04, label = "Cooling, Drying") +
+        annotate("text", x = 0.042, y = 0.04, label = "Warming, Wetting") +
+        annotate("text", x = 0.042, y = -0.04, label = "Warming, Drying") +
+        scale_shape_manual(values = c(20, 20, 4),
+                           guide = "none") +
+        scale_size_manual(values = c(6, 4, 2),
+                          guide = "none") +
+        scale_color_manual(values = c("purple",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Precipitation Trend",
+             color = "Trend & Sampling Frequency") +
+        theme_bw())
+
+# PRECIP V TEMP - including exp sites
+(figNH3_ppt_temp2 <- ggplot(nh3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = precip_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.04, 0.04) +
+        annotate("text", x = -0.042, y = 0.04, label = "Cooling, Wetting") +
+        annotate("text", x = -0.042, y = -0.04, label = "Cooling, Drying") +
+        annotate("text", x = 0.042, y = 0.04, label = "Warming, Wetting") +
+        annotate("text", x = 0.042, y = -0.04, label = "Warming, Drying") +
+        scale_shape_manual(values = c(20, 15, 20, 15, 4),
+                           guide = "none") +
+        scale_size_manual(values = c(6, 4, 4, 3, 2),
+                          guide = "none") +
+        scale_color_manual(values = c("purple",
+                                      "purple",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Precipitation Trend",
+             color = "Trend & Sampling Frequency") +
+        theme_bw())
+
+# GPP V TEMP
+(figNH3_gpp_temp <- ggplot(nh3_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = gpp_CONUS_30m_median)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.001, 0.001) +
+        annotate("text", x = -0.04, y = 0.001, label = "Cooling, Greening") +
+        annotate("text",x = -0.04, y = -0.001, label = "Cooling, Browning") +
+        annotate("text",x = 0.04, y = 0.001, label = "Warming, Greening") +
+        annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
+        scale_shape_manual(values = c(20, 20, 4)) +
+        scale_size_manual(values = c(6, 4, 2)) +
+        scale_color_manual(values = c("purple",
+                                      "gray56",
+                                      "gray76")) +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Productivity Trend",
+             color = "NH3 Trend",
+             shape = "NH3 Trend",
+             size = "NH3 Trend") +
+        theme_bw() +
+        theme(legend.position = "bottom"))
+
+# GPP V TEMP - including exp sites
+(figNH3_gpp_temp2 <- ggplot(nh3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = gpp_CONUS_30m_median)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.001, 0.001) +
+        annotate("text", x = -0.04, y = 0.001, label = "Cooling, Greening") +
+        annotate("text",x = -0.04, y = -0.001, label = "Cooling, Browning") +
+        annotate("text",x = 0.04, y = 0.001, label = "Warming, Greening") +
+        annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
+        scale_shape_manual(values = c(20, 15, 20, 15, 4)) +
+        scale_size_manual(values = c(6, 4, 4, 3, 2)) +
+        scale_color_manual(values = c("purple",
+                                      "purple",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76")) +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Productivity Trend",
+             color = "NH3 Trend",
+             shape = "NH3 Trend",
+             size = "NH3 Trend") +
+        theme_bw() +
+        theme(legend.position = "bottom"))
+
+# DEP V TEMP
+(figNH3_dep_temp <- ggplot(nh3_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = N_flux_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.12, 0.12) +
+        annotate("text", x = -0.035, y = 0.12, label = "Cooling, Eutrophying") +
+        annotate("text",x = -0.035, y = -0.12, label = "Cooling, Oligotrophying") +
+        annotate("text",x = 0.035, y = 0.12, label = "Warming, Eutrophying") +
+        annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
+        scale_shape_manual(values = c(20, 20, 4), guide = "none") +
+        scale_size_manual(values = c(6, 4, 2), guide = "none") +
+        scale_color_manual(values = c("purple",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual N Deposition Trend") +
+        theme_bw())
+
+# DEP V TEMP - including exp sites
+(figNH3_dep_temp2 <- ggplot(nh3_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = N_flux_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.12, 0.12) +
+        annotate("text", x = -0.035, y = 0.12, label = "Cooling, Eutrophying") +
+        annotate("text",x = -0.035, y = -0.12, label = "Cooling, Oligotrophying") +
+        annotate("text",x = 0.035, y = 0.12, label = "Warming, Eutrophying") +
+        annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
+        scale_shape_manual(values = c(20, 15, 20, 15, 4), guide = "none") +
+        scale_size_manual(values = c(6, 4, 4, 3, 2), guide = "none") +
+        scale_color_manual(values = c("purple",
+                                      "purple",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual N Deposition Trend") +
+        theme_bw())
+
+(figNH3_all <- figNH3_ppt_temp + figNH3_gpp_temp + figNH3_dep_temp +
+        plot_annotation(tag_levels = "a"))
+
+# ggsave(figNH3_all,
+#        filename = "figures/panelfig_nh3_clim_dep_trends.jpeg",
+#        height = 14,
+#        width = 40,
+#        units = "cm")
+
+# and export figure with experimental sites included as well
+
+(figNH3_all2 <- figNH3_ppt_temp2 + figNH3_gpp_temp2 + figNH3_dep_temp2 +
+        plot_annotation(tag_levels = "a"))
+
+# ggsave(figNH3_all2,
+#        filename = "figures/panelfig_nh3_clim_dep_trends_exp.jpeg",
+#        height = 14,
+#        width = 40,
+#        units = "cm")
+
+###### TDN ######
+
+# Join TDN and climate trends
+tdn_clim_trends_ann <- full_join(tdn_trends_ann, dep_clim_trends_ann)
+
+# Quick check of overlaps
+tdn_sites <- tdn_trends_ann %>% select(site_code) %>% unique()
+clim_sites <- dep_clim_trends_ann %>% select(site_code) %>% unique()
+inner_tdn <- inner_join(tdn_sites, clim_sites) # 62 sites max overlap
+only_tdn <- tdn_sites %>%
+    filter(!site_code %in% inner_tdn$site_code) # 11 sites only with TDN data
+only_clim <- clim_sites %>%
+    filter(!site_code %in% inner_tdn$site_code) # 104 sites with only climate data
+
+# Trim to variables of interest
+tdn_clim_trends_ann_wide <- tdn_clim_trends_ann %>%
+    select(site_code, var, trend) %>%
+    pivot_wider(names_from = var,
+                values_from = trend)
+
+# And join with trend flags and number of obs. data
+tdn_confidence <- tdn_trends_ann %>%
+    select(site_code, flag, mean_ann_records)
+
+tdn_clim_trends_ann_wide <- full_join(tdn_clim_trends_ann_wide,
+                                      tdn_confidence) %>%
+    mutate(group = factor(case_when(flag %in% c("increasing", "decreasing",
+                                                "non-significant") ~ flag,
+                                    TRUE ~ "insufficient data"),
+                          levels = c("decreasing",
+                                     "increasing",
+                                     "non-significant",
+                                     "insufficient data")))
+
+# Join with site level data.
+tdn_clim_trends_ann_wide <- left_join(tdn_clim_trends_ann_wide,
+                                      ms_site_data) %>%
+    mutate(group2 = factor(case_when(flag %in% c("increasing", "decreasing",
+                                                 "non-significant") &
+                                         ws_status == "non-experimental" ~ flag,
+                                     flag %in% c("increasing") &
+                                         ws_status == "experimental" ~ "increasing exp",
+                                     flag %in% c("decreasing") &
+                                         ws_status == "experimental" ~ "decreasing exp",
+                                     flag %in% c("non-significant") &
+                                         ws_status == "experimental" ~ "non-significant exp",
+                                     TRUE ~ "insufficient data"),
+                           levels = c("decreasing",
+                                      "decreasing exp",
+                                      "increasing",
+                                      "increasing exp",
+                                      "non-significant",
+                                      "non-significant exp",
+                                      "insufficient data")))
+
+# Need to order dataset properly before plotting.
+# This helps points appear better.
+tdn_clim_trends_ann_wide_ed <- tdn_clim_trends_ann_wide %>%
+    filter(ws_status == "non-experimental") %>%
+    arrange(TDN) %>%
+    arrange(desc(group))
+
+tdn_clim_trends_ann_wide <- tdn_clim_trends_ann_wide %>%
+    arrange(TDN) %>%
+    arrange(desc(group))
+
+# PRECIP V TEMP
+(figTDN_ppt_temp <- ggplot(tdn_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = precip_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.04, 0.04) +
+        annotate("text", x = -0.042, y = 0.04, label = "Cooling, Wetting") +
+        annotate("text", x = -0.042, y = -0.04, label = "Cooling, Drying") +
+        annotate("text", x = 0.042, y = 0.04, label = "Warming, Wetting") +
+        annotate("text", x = 0.042, y = -0.04, label = "Warming, Drying") +
+        scale_shape_manual(values = c(20, 20, 20, 4),
+                           guide = "none") +
+        scale_size_manual(values = c(6, 6, 4, 2),
+                          guide = "none") +
+        scale_color_manual(values = c("cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Precipitation Trend",
+             color = "Trend & Sampling Frequency") +
+        theme_bw())
+
+# PRECIP V TEMP - including exp sites
+(figTDN_ppt_temp2 <- ggplot(tdn_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = precip_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.04, 0.04) +
+        annotate("text", x = -0.042, y = 0.04, label = "Cooling, Wetting") +
+        annotate("text", x = -0.042, y = -0.04, label = "Cooling, Drying") +
+        annotate("text", x = 0.042, y = 0.04, label = "Warming, Wetting") +
+        annotate("text", x = 0.042, y = -0.04, label = "Warming, Drying") +
+        scale_shape_manual(values = c(20, 15, 20, 20, 15, 4),
+                           guide = "none") +
+        scale_size_manual(values = c(6, 4, 6, 4, 3, 2),
+                          guide = "none") +
+        scale_color_manual(values = c("cyan4",
+                                      "cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Precipitation Trend",
+             color = "Trend & Sampling Frequency") +
+        theme_bw())
+
+# GPP V TEMP
+(figTDN_gpp_temp <- ggplot(tdn_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = gpp_CONUS_30m_median)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.001, 0.001) +
+        annotate("text", x = -0.04, y = 0.001, label = "Cooling, Greening") +
+        annotate("text",x = -0.04, y = -0.001, label = "Cooling, Browning") +
+        annotate("text",x = 0.04, y = 0.001, label = "Warming, Greening") +
+        annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
+        scale_shape_manual(values = c(20, 20, 20, 4)) +
+        scale_size_manual(values = c(6, 6, 4, 2)) +
+        scale_color_manual(values = c("cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray76")) +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Productivity Trend",
+             color = "TDN Trend",
+             shape = "TDN Trend",
+             size = "TDN Trend") +
+        theme_bw() +
+        theme(legend.position = "bottom"))
+
+# GPP V TEMP - including exp sites
+(figTDN_gpp_temp2 <- ggplot(tdn_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = gpp_CONUS_30m_median)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.001, 0.001) +
+        annotate("text", x = -0.04, y = 0.001, label = "Cooling, Greening") +
+        annotate("text",x = -0.04, y = -0.001, label = "Cooling, Browning") +
+        annotate("text",x = 0.04, y = 0.001, label = "Warming, Greening") +
+        annotate("text",x = 0.04, y = -0.001, label = "Warming, Browning") +
+        scale_shape_manual(values = c(20, 15, 20, 20, 15, 4)) +
+        scale_size_manual(values = c(6, 4, 6, 4, 3, 2)) +
+        scale_color_manual(values = c("cyan4",
+                                      "cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76")) +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual Productivity Trend",
+             color = "TDN Trend",
+             shape = "TDN Trend",
+             size = "TDN Trend") +
+        theme_bw() +
+        theme(legend.position = "bottom"))
+
+# DEP V TEMP
+(figTDN_dep_temp <- ggplot(tdn_clim_trends_ann_wide_ed,
+                           aes(x = temp_mean,
+                               y = N_flux_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group,
+                       color = group,
+                       size = group)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.12, 0.12) +
+        annotate("text", x = -0.035, y = 0.12, label = "Cooling, Eutrophying") +
+        annotate("text",x = -0.035, y = -0.12, label = "Cooling, Oligotrophying") +
+        annotate("text",x = 0.035, y = 0.12, label = "Warming, Eutrophying") +
+        annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
+        scale_shape_manual(values = c(20, 20, 20, 4), guide = "none") +
+        scale_size_manual(values = c(6, 6, 4, 2), guide = "none") +
+        scale_color_manual(values = c("cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual N Deposition Trend") +
+        theme_bw())
+
+# DEP V TEMP - including exp sites
+(figTDN_dep_temp2 <- ggplot(tdn_clim_trends_ann_wide,
+                           aes(x = temp_mean,
+                               y = N_flux_mean)) +
+        geom_hline(yintercept = 0, color = "gray20") +
+        geom_vline(xintercept = 0, color = "gray20") +
+        geom_point(alpha = 0.7,
+                   aes(shape = group2,
+                       color = group2,
+                       size = group2)) +
+        xlim(-0.06, 0.06) +
+        ylim(-0.12, 0.12) +
+        annotate("text", x = -0.035, y = 0.12, label = "Cooling, Eutrophying") +
+        annotate("text",x = -0.035, y = -0.12, label = "Cooling, Oligotrophying") +
+        annotate("text",x = 0.035, y = 0.12, label = "Warming, Eutrophying") +
+        annotate("text",x = 0.035, y = -0.12, label = "Warming, Oligotrophying") +
+        scale_shape_manual(values = c(20, 15, 20, 20, 15, 4), guide = "none") +
+        scale_size_manual(values = c(6, 4, 6, 4, 3, 2), guide = "none") +
+        scale_color_manual(values = c("cyan4",
+                                      "cyan4",
+                                      "darkorange",
+                                      "gray56",
+                                      "gray56",
+                                      "gray76"),
+                           guide = "none") +
+        labs(x = "Mean Annual Temperature Trend",
+             y = "Mean Annual N Deposition Trend") +
+        theme_bw())
+
+(figTDN_all <- figTDN_ppt_temp + figTDN_gpp_temp + figTDN_dep_temp +
+        plot_annotation(tag_levels = "a"))
+
+# ggsave(figTDN_all,
+#        filename = "figures/panelfig_tdn_clim_dep_trends.jpeg",
+#        height = 14,
+#        width = 40,
+#        units = "cm")
+
+# and export figure including experimental sites
+
+(figTDN_all2 <- figTDN_ppt_temp2 + figTDN_gpp_temp2 + figTDN_dep_temp2 +
+        plot_annotation(tag_levels = "a"))
+
+# ggsave(figTDN_all2,
+#        filename = "figures/panelfig_tdn_clim_dep_trends_exp.jpeg",
+#        height = 14,
+#        width = 40,
+#        units = "cm")
+
+# Quick check of sites with trends that overlap.
+no3_sig_trends <- no3_clim_trends_ann_wide_ed %>%
+    filter(flag == "decreasing") %>%
+    rename(flag_NO3 = flag) %>%
+    select(site_code, flag_NO3)
+nh3_sig_trends <- nh3_clim_trends_ann_wide_ed %>%
+    filter(flag == "decreasing") %>%
+    rename(flag_NH3 = flag) %>%
+    select(site_code, flag_NH3)
+tdn_sig_trends <- tdn_clim_trends_ann_wide_ed %>%
+    filter(flag %in% c("decreasing", "increasing")) %>%
+    rename(flag_TDN = flag) %>%
+    select(site_code, flag_TDN)
+
+all_sig_trends <- full_join(no3_sig_trends,
+                            nh3_sig_trends)
+all_sig_trends <- full_join(all_sig_trends,
+                            tdn_sig_trends)
 
 # End of script.
