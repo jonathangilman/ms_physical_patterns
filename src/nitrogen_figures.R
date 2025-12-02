@@ -1075,9 +1075,11 @@ dat_text_seas <- data.frame(
 # figure showing peak months for Q and N analytes.
 
 # First, I need to calculate monthly averages
-mean_N_VWM_monthly20 <- N_VWM_monthly %>%
-    filter(water_year > 2009) %>%
-    filter(water_year < 2021) %>%
+# NOTE- IVE EDITED THIS CODE TO INCLUDE ALL POSSIBLE DATA
+# TO SHOW AS AN ALTERNATIVE TO ONLY 2010-2020.
+mean_N_VWM_monthly <- N_VWM_monthly %>%
+    #filter(water_year > 2009) %>%
+    #filter(water_year < 2021) %>%
     group_by(site_code, analyte_N, month) %>%
     summarize(mean_monthly_VWM_mgL = mean(monthly_vwm_mgL,
                                          na.rm = TRUE),
@@ -1087,9 +1089,9 @@ mean_N_VWM_monthly20 <- N_VWM_monthly %>%
     ungroup()
 
 # Join with site info so that we can filter out experimental sites.
-mean_N_VWM_monthly20 <- left_join(mean_N_VWM_monthly20, ms_site_data)
+mean_N_VWM_monthly <- left_join(mean_N_VWM_monthly, ms_site_data)
 
-mean_N_VWM_monthly20_nonexp <- mean_N_VWM_monthly20 %>%
+mean_N_VWM_monthly_nonexp <- mean_N_VWM_monthly %>%
     filter(ws_status == "non-experimental")
 
 # Also, to impose at least a minimal filter on these data I am going to
@@ -1097,7 +1099,8 @@ mean_N_VWM_monthly20_nonexp <- mean_N_VWM_monthly20 %>%
 # this time frame.
 
 # Taking the average of months represented and years in records.
-mean_times <- mean_N_VWM_monthly20_nonexp %>%
+# NOTE NEW FILTER IS MIN. 3 MONTHS AND 3 YEARS
+mean_times <- mean_N_VWM_monthly_nonexp %>%
     filter(analyte_N %in% c("NO3_N", "NH3_N", "TDN")) %>%
     group_by(site_code, analyte_N) %>%
     summarize(total_months = n(),
@@ -1106,14 +1109,14 @@ mean_times <- mean_N_VWM_monthly20_nonexp %>%
 
 keep_sites <- mean_times %>%
     mutate(keep = case_when(total_months > 2 &
-                                avg_years >= 6 ~ "YES",
+                                avg_years >= 3 ~ "YES",
                             TRUE ~ "NO")) %>%
     filter(keep == "YES") %>%
     select(site_code, analyte_N)
 
 # And trim down original monthly VWM data to match the above list.
-mean_N_VWM_monthly20_nonexp_keep <- left_join(keep_sites,
-                                              mean_N_VWM_monthly20_nonexp)
+mean_N_VWM_monthly_nonexp_keep <- left_join(keep_sites,
+                                            mean_N_VWM_monthly_nonexp)
 
 # Also, need to bring in Q data to do the same.
 q_monthly <- q_metrics %>%
@@ -1122,25 +1125,26 @@ q_monthly <- q_metrics %>%
 
 # calculate monthly averages
 # First, I need to calculate monthly averages
-mean_q_monthly20 <- q_monthly %>%
-    filter(water_year > 2009) %>%
-    filter(water_year < 2021) %>%
+# NOTE MAKING SAME ADJUSTMENTS HERE AS ABOVE
+mean_q_monthly <- q_monthly %>%
+    #filter(water_year > 2009) %>%
+    #filter(water_year < 2021) %>%
     group_by(site_code, month) %>%
     summarize(mean_monthly_q = mean(q_mean, na.rm = TRUE),
               total_years = as.numeric(n())) %>%
     ungroup() %>%
-    filter(total_years > 6) %>%
+    filter(total_years >= 3) %>%
     filter(!is.nan(mean_monthly_q)) %>%
     filter(!is.na(month))
 
 # And find peak discharge months.
-peak_q_months <- mean_q_monthly20 %>%
+peak_q_months <- mean_q_monthly %>%
     group_by(site_code) %>%
     slice_max(mean_monthly_q) %>%
     mutate(analyte_N = "Q")
 
 # Calculate peak months.
-peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
+peak_months <- mean_N_VWM_monthly_nonexp_keep %>%
     group_by(site_code, analyte_N) %>%
     slice_max(mean_monthly_VWM_mgL) %>%
     # and join with Q data above
@@ -1159,7 +1163,7 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
     geom_bar(stat = "count", fill = "#4B8FF7") +
     labs(x = "Month", y = "Count", title = "Q") +
     scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                       limits = c(1,12)) +
+                       limits = c(0,13)) +
     theme_bw() +
     theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1168,9 +1172,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#E7A655") +
         labs(x = "Month", y = "Count", title = "Nitrate") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10),
-                           limits = c(0,10)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10),
+        #                    limits = c(0,10)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1179,9 +1183,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#E38377") +
         labs(x = "Month", y = "Count", title = "Ammonium") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6),
-                           limits = c(0,6)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6),
+        #                    limits = c(0,6)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1190,9 +1194,9 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
         geom_bar(stat = "count", fill = "#6D4847") +
         labs(x = "Month", y = "Count", title = "Total Dissolved Nitrogen") +
         scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12),
-                           limits = c(1,12)) +
-        scale_y_continuous(breaks = c(1,2,3,4,5,6),
-                           limits = c(0,6)) +
+                           limits = c(0,13)) +
+        # scale_y_continuous(breaks = c(1,2,3,4,5,6),
+        #                    limits = c(0,6)) +
         theme_bw() +
         theme(plot.title = element_text(hjust = 0.5)))
 
@@ -1201,7 +1205,7 @@ peak_months <- mean_N_VWM_monthly20_nonexp_keep %>%
 
 # And export figure.
 # ggsave(peaks_all,
-#        filename = "figures/peak_months_N_2010_to_2020.jpeg",
+#        filename = "figures/peak_months_N.jpeg",
 #        height = 20,
 #        width = 10,
 #        units = "cm")
@@ -2129,7 +2133,7 @@ no3_clim_trends_ann_wide <- no3_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "NO3 Trend",
              shape = "NO3 Trend",
              size = "NO3 Trend") +
@@ -2161,7 +2165,7 @@ no3_clim_trends_ann_wide <- no3_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "NO3 Trend",
              shape = "NO3 Trend",
              size = "NO3 Trend") +
@@ -2391,7 +2395,7 @@ nh3_clim_trends_ann_wide <- nh3_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "NH3 Trend",
              shape = "NH3 Trend",
              size = "NH3 Trend") +
@@ -2422,7 +2426,7 @@ nh3_clim_trends_ann_wide <- nh3_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "NH3 Trend",
              shape = "NH3 Trend",
              size = "NH3 Trend") +
@@ -2654,7 +2658,7 @@ tdn_clim_trends_ann_wide <- tdn_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "TDN Trend",
              shape = "TDN Trend",
              size = "TDN Trend") +
@@ -2686,7 +2690,7 @@ tdn_clim_trends_ann_wide <- tdn_clim_trends_ann_wide %>%
                                       "gray56",
                                       "gray76")) +
         labs(x = "Mean Annual Temperature Trend",
-             y = "Mean Annual N Deposition Trend",
+             y = "Mean Annual Productivity Trend",
              color = "TDN Trend",
              shape = "TDN Trend",
              size = "TDN Trend") +
@@ -2768,5 +2772,24 @@ tdn_clim_trends_ann_wide <- tdn_clim_trends_ann_wide %>%
 #        height = 14,
 #        width = 40,
 #        units = "cm")
+
+# Quick check of sites with trends that overlap.
+no3_sig_trends <- no3_clim_trends_ann_wide_ed %>%
+    filter(flag == "decreasing") %>%
+    rename(flag_NO3 = flag) %>%
+    select(site_code, flag_NO3)
+nh3_sig_trends <- nh3_clim_trends_ann_wide_ed %>%
+    filter(flag == "decreasing") %>%
+    rename(flag_NH3 = flag) %>%
+    select(site_code, flag_NH3)
+tdn_sig_trends <- tdn_clim_trends_ann_wide_ed %>%
+    filter(flag %in% c("decreasing", "increasing")) %>%
+    rename(flag_TDN = flag) %>%
+    select(site_code, flag_TDN)
+
+all_sig_trends <- full_join(no3_sig_trends,
+                            nh3_sig_trends)
+all_sig_trends <- full_join(all_sig_trends,
+                            tdn_sig_trends)
 
 # End of script.
